@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 import { Shipment, TransportMode, VehicleClass, FuelType } from './types';
 import { analyzeShipments } from './analysis-service';
@@ -210,10 +211,10 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../../frontend/dist');
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
-  app.get('*', (_req, res) => {
+  app.get('/{*splat}', (_req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
   });
 }
