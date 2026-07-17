@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario, VehicleClass, FuelType, TransportMode } from './types';
+import type { Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario, VehicleClass, FuelType, TransportMode, Action } from './types';
 import {
   analyzeShipments, uploadCSV, getSampleData, getScenarios, runComparison,
   listAnalyses, getAnalysis, saveAnalysis, deleteAnalysis, exportOptimizedCSV,
@@ -162,7 +162,7 @@ function HistoryPanel({ onLoad }: { onLoad: (id: string) => void }) {
 // ─── Dashboard ──────────────────────────────────────────────
 
 function Dashboard({ data, onSave }: { data: AnalysisResult; onSave: (name: string) => void }) {
-  const { summary, shipments, confidence, actions, insights } = data;
+  const { summary, shipments, confidence, actions } = data;
   const modeData = Object.entries(summary.emissionsByMode).filter(([, v]) => v > 0).map(([mode, emissions]) => ({ name: mode, value: Math.round(emissions) }));
   const topRoutes = [...shipments].sort((a, b) => b.co2Emissions - a.co2Emissions).slice(0, 10).map((s) => ({ name: `${s.origin}→${s.destination}`, emissions: Math.round(s.co2Emissions) }));
   const [saveName, setSaveName] = useState('');
@@ -231,7 +231,7 @@ function Dashboard({ data, onSave }: { data: AnalysisResult; onSave: (name: stri
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={modeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                 {modeData.map((e) => <Cell key={e.name} fill={MODE_COLORS[e.name]} />)}
               </Pie>
               <Tooltip />
@@ -283,15 +283,7 @@ function ComparisonPanel({ data }: { data: AnalysisResult }) {
   const handleExport = async () => {
     if (!result) return;
     setExporting(true);
-    try {
-      const blob = await exportOptimizedCSV(result);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `optimized-${result.scenario.id}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch { alert('Export failed'); }
+    try { await exportOptimizedCSV(result); } catch { alert('Export failed'); }
     setExporting(false);
   };
 

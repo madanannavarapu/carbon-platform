@@ -72,18 +72,18 @@ export async function deleteAnalysis(id: string): Promise<void> {
   await fetch(`${API}/analyses/${id}`, { method: 'DELETE' });
 }
 
-export async function exportOptimizedCSV(shipments: any[], scenarioId?: string): Promise<void> {
+export async function exportOptimizedCSV(result: { affectedShipments: any[]; scenario: { id: string } }): Promise<void> {
   const res = await fetch(`${API}/export-csv`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shipments, scenarioId }),
+    body: JSON.stringify({ shipments: result.affectedShipments, scenarioId: result.scenario.id }),
   });
   if (!res.ok) throw new Error('Export failed');
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = scenarioId ? `optimized-${scenarioId}.csv` : 'shipments.csv';
+  a.download = `optimized-${result.scenario.id}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
