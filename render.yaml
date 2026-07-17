@@ -6,8 +6,6 @@ services:
     buildCommand: cd backend && npm install --include=dev && npx tsc && cd ../frontend && npm install --include=dev && npm run build
     startCommand: cd backend && NODE_ENV=production node dist/server.js
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: PORT
         value: 10000
       - key: SUPABASE_URL
