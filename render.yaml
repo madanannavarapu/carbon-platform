@@ -1,10 +1,9 @@
 services:
   - type: web
     name: carbon-platform
-    runtime: node
+    runtime: docker
     plan: free
-    buildCommand: cd backend && NODE_ENV=development npm install && npx tsc && cd ../frontend && NODE_ENV=development npm install && npm run build
-    startCommand: cd backend && node dist/server.js
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
         value: 10000
