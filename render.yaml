@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: carbon-platform
+    runtime: node
+    plan: free
+    buildCommand: |
+      cd backend && npm install && npx tsc
+      cd ../frontend && npm install && npm run build
+    startCommand: cd backend && NODE_ENV=production node dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

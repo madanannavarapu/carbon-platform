@@ -1,0 +1,11 @@
+shipmentId,origin,destination,distance,mode,weight,vehicleType
+SHP-0001,Mumbai,Delhi,1400,road,15,truck-large
+SHP-0002,Bangalore,Chennai,350,road,8,truck-medium
+SHP-0003,Kolkata,Mumbai,2100,rail,50,
+SHP-0004,Delhi,Bangalore,2200,air,2,
+SHP-0005,Chennai,Shanghai,8000,sea,100,
+SHP-0006,Pune,Jaipur,1200,road,12,truck-medium
+SHP-0007,Hyderabad,Goa,700,road,6,truck-small
+SHP-0008,Mumbai,Kolkata,2000,rail,40,
+SHP-0009,Delhi,Chennai,2400,road,20,truck-large
+SHP-0010,Bangalore,Mumbai,1000,road,10,truck-medium
