@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import type {
   Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario,
   VehicleClass, FuelType, TransportMode, Action,
-  CBAMImport, CBAMCertificate, CBAMCompliance, CBAMInstallation,
+  CBAMImport, CBAMCertificate, CBAMCompliance,
 } from './types';
 import {
   analyzeShipments, uploadCSV, getSampleData, getScenarios, runComparison,
@@ -611,7 +611,6 @@ function ReportButton({ data }: { data: AnalysisResult }) {
 // ─── CBAM Panel ─────────────────────────────────────────────
 
 function CBAMPanel() {
-  const [installations, setInstallations] = useState<CBAMInstallation[]>([]);
   const [imports, setImports] = useState<CBAMImport[]>([]);
   const [certificates, setCertificates] = useState<CBAMCertificate[]>([]);
   const [compliance, setCompliance] = useState<CBAMCompliance | null>(null);
@@ -621,8 +620,7 @@ function CBAMPanel() {
   const loadSampleData = async () => {
     setLoading(true);
     try {
-      const [inst, imp] = await Promise.all([getCBAMInstallations(), getCBAMSampleImports()]);
-      setInstallations(inst);
+      const [, imp] = await Promise.all([getCBAMInstallations(), getCBAMSampleImports()]);
       setImports(imp);
       setLoaded(true);
     } catch { alert('Failed to load CBAM data'); }
