@@ -271,6 +271,9 @@ app.get('/api/health', (_req, res) => {
 const frontendPath = path.join(__dirname, '../../frontend/dist');
 if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
   app.get('/{*splat}', (_req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
   });
