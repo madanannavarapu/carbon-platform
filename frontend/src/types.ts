@@ -115,3 +115,63 @@ export interface SavedAnalysis {
   created_at: string;
   summary: AnalysisResult['summary'];
 }
+
+// ─── CBAM Types ─────────────────────────────────────────────
+
+export type CBAMSector = 'iron-steel' | 'aluminium' | 'cement' | 'fertilisers' | 'hydrogen';
+
+export interface CBAMProduct {
+  cnCode: string;
+  name: string;
+  sector: CBAMSector;
+  unit: string;
+}
+
+export interface EmbeddedEmissions {
+  scope1: number;
+  scope2: number;
+  upstream: number;
+  total: number;
+}
+
+export interface CBAMInstallation {
+  id: string;
+  name: string;
+  country: string;
+  sector: CBAMSector;
+  emissions: EmbeddedEmissions;
+  verified: boolean;
+  verificationDate?: string;
+}
+
+export interface CBAMImport {
+  id: string;
+  installationId: string;
+  product: CBAMProduct;
+  quantity: number;
+  country: string;
+  carbonPricePaid?: number;
+}
+
+export interface CBAMCertificate {
+  id: string;
+  importId: string;
+  embeddedEmissions: number;
+  etsPrice: number;
+  totalCost: number;
+  carbonPriceDeduction: number;
+  netCost: number;
+  status: 'pending' | 'purchased' | 'surrendered';
+  quarter: string;
+}
+
+export interface CBAMCompliance {
+  reportingPeriod: string;
+  totalImports: number;
+  totalEmbeddedEmissions: number;
+  totalCertificateCost: number;
+  totalCarbonPricePaid: number;
+  netObligation: number;
+  deadline: string;
+  status: 'on-track' | 'at-risk' | 'overdue';
+}

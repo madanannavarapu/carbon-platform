@@ -4,10 +4,15 @@ import {
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario, VehicleClass, FuelType, TransportMode, Action } from './types';
+import type {
+  Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario,
+  VehicleClass, FuelType, TransportMode, Action,
+  CBAMImport, CBAMCertificate, CBAMCompliance, CBAMInstallation,
+} from './types';
 import {
   analyzeShipments, uploadCSV, getSampleData, getScenarios, runComparison,
   listAnalyses, getAnalysis, saveAnalysis, deleteAnalysis, exportOptimizedCSV,
+  getCBAMInstallations, getCBAMSampleImports, calculateCBAM,
 } from './api';
 
 const MODE_COLORS: Record<string, string> = { road: '#ef4444', rail: '#22c55e', air: '#f59e0b', sea: '#3b82f6' };
@@ -603,9 +608,142 @@ function ReportButton({ data }: { data: AnalysisResult }) {
   );
 }
 
+// ─── CBAM Panel ─────────────────────────────────────────────
+
+function CBAMPanel() {
+  const [installations, setInstallations] = useState<CBAMInstallation[]>([]);
+  const [imports, setImports] = useState<CBAMImport[]>([]);
+  const [certificates, setCertificates] = useState<CBAMCertificate[]>([]);
+  const [compliance, setCompliance] = useState<CBAMCompliance | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const loadSampleData = async () => {
+    setLoading(true);
+    try {
+      const [inst, imp] = await Promise.all([getCBAMInstallations(), getCBAMSampleImports()]);
+      setInstallations(inst);
+      setImports(imp);
+      setLoaded(true);
+    } catch { alert('Failed to load CBAM data'); }
+    setLoading(false);
+  };
+
+  const runCalculation = async (useDefaults: boolean) => {
+    if (imports.length === 0) return;
+    setLoading(true);
+    try {
+      const { certificates: certs, compliance: comp } = await calculateCBAM(imports, useDefaults, 2026);
+      setCertificates(certs);
+      setCompliance(comp);
+    } catch { alert('CBAM calculation failed'); }
+    setLoading(false);
+  };
+
+  const totalEmbedded = certificates.reduce((s, c) => s + c.embeddedEmissions, 0);
+  const totalCost = certificates.reduce((s, c) => s + c.netCost, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-6 text-white">
+        <h2 className="text-xl font-bold">EU CBAM Compliance Dashboard</h2>
+        <p className="text-emerald-100 text-sm mt-1">Carbon Border Adjustment Mechanism — Embedded emissions tracking for EU exports</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          {[
+            { label: 'Embedded Emissions', value: `${fmt(totalEmbedded)} tCO₂e`, unit: '' },
+            { label: 'Certificate Cost', value: `€${fmt(totalCost, 0)}`, unit: '' },
+            { label: 'Compliance Status', value: compliance?.status?.toUpperCase() || '—', unit: '' },
+            { label: 'Deadline', value: compliance?.deadline || 'Sep 30, 2027', unit: '' },
+          ].map((c, i) => (
+            <div key={i} className="bg-white/20 rounded-lg p-3">
+              <p className="text-emerald-100 text-xs">{c.label}</p>
+              <p className="text-lg font-bold mt-1">{c.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button onClick={loadSampleData} disabled={loading}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50">
+          Load Sample Imports
+        </button>
+        {loaded && (
+          <>
+            <button onClick={() => runCalculation(false)} disabled={loading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50">
+              Calculate (Actual Data)
+            </button>
+            <button onClick={() => runCalculation(true)} disabled={loading}
+              className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+              Calculate (Default Values)
+            </button>
+          </>
+        )}
+      </div>
+
+      {imports.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Product</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">CN Code</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-600">Qty (t)</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Country</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-600">Embedded (tCO₂e)</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-600">Certificate Cost (€)</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-600">Net Cost (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {imports.map((imp) => {
+                const cert = certificates.find((c) => c.importId === imp.id);
+                return (
+                  <tr key={imp.id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{imp.product.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{imp.product.cnCode}</td>
+                    <td className="px-4 py-3 text-right">{fmt(imp.quantity)}</td>
+                    <td className="px-4 py-3">{imp.country}</td>
+                    <td className="px-4 py-3 text-right">{cert ? fmt(cert.embeddedEmissions) : '—'}</td>
+                    <td className="px-4 py-3 text-right">{cert ? `€${fmt(cert.totalCost, 0)}` : '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold">{cert ? `€${fmt(cert.netCost, 0)}` : '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {certificates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border p-4">
+          <h3 className="font-medium text-sm text-gray-700 mb-3">Certificate Cost Breakdown</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            {certificates.map((cert) => (
+              <div key={cert.id} className="bg-gray-50 rounded-lg p-3 border">
+                <p className="text-xs text-gray-500">{cert.importId} · {cert.quarter}</p>
+                <p className="text-sm font-medium mt-1">ETS Price: €{cert.etsPrice}/tCO₂e</p>
+                <p className="text-sm">Embedded: {fmt(cert.embeddedEmissions)} tCO₂e</p>
+                <p className="text-sm font-semibold text-emerald-700">Net: €{fmt(cert.netCost, 0)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loaded && !loading && (
+        <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
+          <p className="text-gray-500">Click "Load Sample Imports" to see CBAM compliance data for Indian exporters to the EU.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── App ────────────────────────────────────────────────────
 
-type View = 'input' | 'dashboard' | 'insights' | 'compare' | 'report';
+type View = 'input' | 'dashboard' | 'insights' | 'compare' | 'report' | 'cbam';
 
 export default function App() {
   const [view, setView] = useState<View>('input');
@@ -652,7 +790,7 @@ export default function App() {
           </div>
           {data && (
             <nav className="flex gap-1 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-              {([['input', 'Input'], ['dashboard', 'Dashboard'], ['compare', 'Compare'], ['insights', 'Insights'], ['report', 'Report']] as const).map(([v, label]) => (
+              {([['input', 'Input'], ['dashboard', 'Dashboard'], ['compare', 'Compare'], ['insights', 'Insights'], ['report', 'Report'], ['cbam', 'CBAM']] as const).map(([v, label]) => (
                 <button key={v} onClick={() => setView(v)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap shrink-0 ${view === v ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
                   {label}
@@ -687,6 +825,7 @@ export default function App() {
             <ReportButton data={data} />
           </div>
         )}
+        {!loading && view === 'cbam' && <CBAMPanel />}
       </main>
     </div>
   );

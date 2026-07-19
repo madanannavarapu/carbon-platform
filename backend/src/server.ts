@@ -10,6 +10,10 @@ import { generateSampleData } from './sample-data';
 import { runComparison, PRESET_SCENARIOS } from './comparison-engine';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getEmissionFactor, getCostPerTonKm } from './emission-factors';
+import { calculateCertificateCost, calculateCompliance, calculateDefaultPenalty } from './cbam-engine';
+import { CBAM_PRODUCTS, SECTOR_EMISSION_INTENSITY, EU_ETS_PRICES } from './cbam-factors';
+import { SAMPLE_INSTALLATIONS, SAMPLE_IMPORTS } from './cbam-sample-data';
+import { CBAMImport } from './cbam-types';
 
 const app = express();
 app.use(cors());
@@ -203,6 +207,59 @@ app.delete('/api/analyses/:id', async (req, res) => {
   const { error } = await supabase!.from('analyses').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// ─── CBAM Routes ────────────────────────────────────────────
+
+app.get('/api/cbam/products', (_req, res) => {
+  res.json(CBAM_PRODUCTS);
+});
+
+app.get('/api/cbam/installations', (_req, res) => {
+  res.json(SAMPLE_INSTALLATIONS);
+});
+
+app.get('/api/cbam/sample-imports', (_req, res) => {
+  res.json(SAMPLE_IMPORTS);
+});
+
+app.post('/api/cbam/calculate', (req, res) => {
+  try {
+    const { imports: importsData, useDefaults, year } = req.body as {
+      imports: CBAMImport[];
+      useDefaults: boolean;
+      year: number;
+    };
+    if (!Array.isArray(importsData) || importsData.length === 0) {
+      return res.status(400).json({ error: 'Provide imports array' });
+    }
+
+    const certificates = importsData.map((imp) => calculateCertificateCost(imp, useDefaults, year || 2026));
+    const compliance = calculateCompliance(importsData, certificates, `${year || 2026}`);
+
+    res.json({ certificates, compliance });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cbam/penalty', (req, res) => {
+  try {
+    const { country, sector, quantity, year } = req.body;
+    const result = calculateDefaultPenalty(country, sector, quantity, year || 2026);
+    if (!result) return res.status(404).json({ error: 'No default values for this country/sector' });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/cbam/ets-prices', (_req, res) => {
+  res.json(EU_ETS_PRICES);
+});
+
+app.get('/api/cbam/sector-intensity', (_req, res) => {
+  res.json(SECTOR_EMISSION_INTENSITY);
 });
 
 // Health

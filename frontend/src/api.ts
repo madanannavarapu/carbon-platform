@@ -1,4 +1,15 @@
-import type { Shipment, AnalysisResult, ComparisonResult, SavedAnalysis, ComparisonScenario } from './types';
+import type {
+  Shipment,
+  AnalysisResult,
+  ComparisonResult,
+  SavedAnalysis,
+  ComparisonScenario,
+  CBAMImport,
+  CBAMCertificate,
+  CBAMCompliance,
+  CBAMProduct,
+  CBAMInstallation,
+} from './types';
 
 const API = '/api';
 
@@ -86,4 +97,38 @@ export async function exportOptimizedCSV(result: { affectedShipments: any[]; sce
   a.download = `optimized-${result.scenario.id}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ─── CBAM API ───────────────────────────────────────────────
+
+export async function getCBAMProducts(): Promise<CBAMProduct[]> {
+  const res = await fetch(`${API}/cbam/products`);
+  if (!res.ok) throw new Error('Failed to fetch CBAM products');
+  return res.json();
+}
+
+export async function getCBAMInstallations(): Promise<CBAMInstallation[]> {
+  const res = await fetch(`${API}/cbam/installations`);
+  if (!res.ok) throw new Error('Failed to fetch installations');
+  return res.json();
+}
+
+export async function getCBAMSampleImports(): Promise<CBAMImport[]> {
+  const res = await fetch(`${API}/cbam/sample-imports`);
+  if (!res.ok) throw new Error('Failed to fetch sample imports');
+  return res.json();
+}
+
+export async function calculateCBAM(
+  imports: CBAMImport[],
+  useDefaults: boolean,
+  year: number
+): Promise<{ certificates: CBAMCertificate[]; compliance: CBAMCompliance }> {
+  const res = await fetch(`${API}/cbam/calculate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imports, useDefaults, year }),
+  });
+  if (!res.ok) throw new Error('Failed to calculate CBAM');
+  return res.json();
 }
